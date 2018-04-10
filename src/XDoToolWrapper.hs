@@ -1,32 +1,39 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, LambdaCase #-}
 module XDoToolWrapper 
-(
+( W(..)
+, sendKey
+, Key(..)
+, runW
 ) where
 
-import Control.Monad.State
+import Control.Monad.State.Strict
 import qualified Data.Map.Strict as M
-import HSH
+import qualified System.Process  as P
+import System.Exit (ExitCode(..))
 
 data Key = Key Char
 
-newtype Windows = M.Map String Int
+type Windows = M.Map String Int
 
 data WState = WState
   { windows :: !Windows -- ^ Open windows
   }
 
-newtype W a = W (StateT WState IO a)
-  deriving (Functor, Monad, MonadIO, MonadState WState)
+type W a = StateT WState IO a
 
-instance Applicative W where
-  pure = return
-  (<*>) = ap
+emptyState :: WState
+emptyState = WState M.empty
 
+runW :: W a -> IO a
+runW w = evalStateT w emptyState
 
-checkInstalled :: IO Bool
-checkInstalled = run "hash xdotool"
+safeXDoTool :: [String] -> W ()
+safeXDoTool args = do
+  (exitcode, stdout, stderr) <- liftIO $ P.readProcessWithExitCode "xdotool" args ""
+  printError exitcode stderr
+    where
+      printError ExitSuccess _ = return ()
+      printError _ stderr      = liftIO $ print stderr
 
-sendKey :: Key -> IO ()
-sendKey (Key k) = run $ "xdotool key " ++ [k]
-
-
+sendKey :: Key -> W ()
+sendKey (Key k) = safeXDoTool ["key", [k]]
