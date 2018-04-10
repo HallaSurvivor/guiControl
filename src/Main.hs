@@ -7,6 +7,7 @@ import Control.Monad.Trans
 
 terminalOff :: IO ()
 terminalOff = do
+  clearScreen
   hSetEcho stdin False
   hSetBuffering stdin  NoBuffering
   hSetBuffering stdout NoBuffering
@@ -35,15 +36,17 @@ commandMode = do
   runCmd cmd
 
 runCmd :: String -> W ()
-runCmd = undefined
+runCmd cmd = case cmd of
+  "q"    -> return ()
+  "quit" -> return ()
+  _      -> normalMode
 
 loop :: W ()
 loop = do
   k <- liftIO $ getChar
   case k of
     ':' -> commandMode
-    _   -> sendKey (Key k)
-  loop
+    _   -> sendKey (Key k) >> loop
 
 main :: IO ()
 main = runW normalMode
