@@ -1,21 +1,33 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Core
-( R(..)
-, runR
-, startState
-, defaultConfig
-) where
+  ( R(..)
+  , WConfig(..)
+  , WState(..)
+  , Mode(..)
+  , Key(..)
+  , runR
+  , startState
+  , runCommand
+  , terminalOn
+  , terminalOff
+  , sendKey
+  ) where
 
 import Control.Monad.State.Strict
 import Control.Monad.Reader
-
+import Control.Monad.Except
+import Data.Maybe
+import System.Console.ANSI
+import System.IO
+import System.Exit (ExitCode(..))
 import qualified Data.Map.Strict as M
+import qualified System.Process as P
 
 type Windows   = M.Map String Int -- ^ Window name, Window ID
 
 -- | Modes that we can be in, and the commands available in each mode
-data Mode = Normal | Insert | Command
-  deriving (Eq, Ord)
+data Mode = Normal | Insert | Command | Quitting
+  deriving (Eq, Ord, Show)
 
 type Commands = M.Map (Mode, String) (R ()) -- ^ Mode/Command name to Command
 
@@ -25,12 +37,18 @@ data WState = WState
   }
 
 data WConfig = WConfig
-  { commands :: !Commands
+  { commands    :: !Commands
+  , toNormal    :: R ()
+  , toInsert    :: R ()
+  , toCommand   :: R ()
+  , toQuitting  :: R ()
+  , cmdNotFound :: String -> R ()
+  , drawStatus :: R ()
   }
 
 -- | R has read access to WConfig and read/write access to WState
-newtype R a = R (ReaderT WConfig (StateT WState IO) a)
-  deriving (Functor, Monad, MonadIO, MonadState WState, MonadReader WConfig)
+newtype R a = R (ReaderT WConfig (StateT WState (ExceptT String IO)) a)
+  deriving (Functor, Monad, MonadIO, MonadState WState, MonadReader WConfig, MonadError String)
 
 instance Applicative R where
   pure  = return
@@ -38,50 +56,47 @@ instance Applicative R where
 
 
 -- | Execute a block of R code given a config and start state
-runR :: WConfig -> WState -> R a -> IO (a, WState)
-runR cfg st (R x) = runStateT (runReaderT x cfg) st
+runR :: WConfig -> WState -> R a -> IO (Either String (a, WState))
+runR cfg st (R x) = runExceptT $ runStateT (runReaderT x cfg) st
 
 -- | Starting State
 startState :: WState
 startState = WState M.empty Normal
 
--- | Modify an existing command in a given mode (adds it if it doesn't exist)
-modifyCommand :: WConfig -> Mode -> String -> R () -> WConfig
-modifyCommand cfg mode name cmd = cfg { commands = commands' }
-  where
-    commands' = M.insert (mode, name) cmd (commands cfg)
+-- | Run the requested cmd, throw an error if it doesn't exist
+runCommand :: String -> R ()
+runCommand cmd = do
+  _mode <- mode <$> get
+  _cmds <- commands <$> ask
+  fromMaybe (throwError cmd) (M.lookup (_mode, cmd) _cmds)
 
-quit :: R ()
-quit = return ()
 
-toNormal :: R ()
-toNormal = do
-  st <- get
-  put $ st { mode = Normal }
+data Key = Key Char
 
-toCommand :: R ()
-toCommand = do
-  st <- get
-  put $ st { mode = Command }
+safeXDoTool :: [String] -> R ()
+safeXDoTool args = do
+  (exitcode, stdout, stderr) <- liftIO $ P.readProcessWithExitCode "xdotool" args ""
+  liftIO $ printError exitcode stderr
+    where
+      printError ExitSuccess _ = return ()
+      printError _ stderr      = print stderr
 
--- | Default configuration
-defaultConfig :: WConfig
-defaultConfig = WConfig commands
-  where
-    normalCommands =
-      [ (":", toCommand)
-      ]
+sendKey :: Key -> R ()
+sendKey (Key k) = safeXDoTool ["key", [k]]
 
-    insertCommands =
-      [ ("<esc>", toNormal) 
-      ]
+terminalOff :: R ()
+terminalOff = liftIO $ do
+  clearScreen
+  hSetEcho stdin False
+  hSetBuffering stdin  NoBuffering
+  hSetBuffering stdout NoBuffering
+  hideCursor
 
-    commandCommands = 
-      [ ("q"   , quit)
-      , ("quit", quit)
-      ]
-
-    commands = M.fromList $
-      fmap (\(str, cmd) -> ((Normal,  str), cmd)) normalCommands ++
-      fmap (\(str, cmd) -> ((Insert,  str), cmd)) insertCommands ++
-      fmap (\(str, cmd) -> ((Command, str), cmd)) commandCommands
+terminalOn :: R ()
+terminalOn = liftIO $ do
+  hSetEcho stdin True
+  hSetBuffering stdin  LineBuffering
+  hSetBuffering stdout LineBuffering
+  clearScreen
+  setCursorPosition 0 0
+  showCursor

@@ -1,54 +1,41 @@
 module Main where
 
 import Core
-import XDoToolWrapper
-import System.Console.ANSI
-import System.IO
-import Control.Monad.Trans
+import DefaultConfig
+import Control.Monad.Reader
+import Control.Monad.Except
+import Control.Monad.State
+import Control.Monad
+import Data.Maybe
 
-terminalOff :: IO ()
-terminalOff = do
-  clearScreen
-  hSetEcho stdin False
-  hSetBuffering stdin  NoBuffering
-  hSetBuffering stdout NoBuffering
-  hideCursor
-
-terminalOn :: IO ()
-terminalOn = do
-  hSetEcho stdin True
-  hSetBuffering stdin  LineBuffering
-  hSetBuffering stdout LineBuffering
-  clearScreen
-  setCursorPosition 0 0
-  showCursor
-
-
-normalMode :: R ()
-normalMode = do
-  liftIO terminalOff
+initialize :: R ()
+initialize = do
+  join $ toNormal <$> ask
   loop
 
-commandMode :: R ()
-commandMode = do
-  liftIO $ putStr ":"
-  liftIO terminalOn
-  cmd <- liftIO getLine
-  runCmd cmd
-
--- TODO: allow window switching, opening new windows
-runCmd :: String -> R ()
-runCmd cmd = case cmd of
-  "q"    -> return ()
-  "quit" -> return ()
-  _      -> normalMode
-
+-- | The main loop
 loop :: R ()
 loop = do
-  k <- liftIO getChar
-  case k of
-    ':' -> commandMode
-    _   -> sendKey (Key k) >> loop
+  join $ drawStatus <$> ask
+  _mode <- mode <$> get
+  case _mode of
+    Command -> do
+      _cmdNotFound <- cmdNotFound <$> ask
+      cmd <- liftIO getLine
+      runCommand cmd `catchError` _cmdNotFound
+      mode' <- mode <$> get
+      unless (mode' == Quitting) (join $ toNormal <$> ask)
+      loop
+    Normal -> do 
+      k <- liftIO getChar
+      runCommand [k] `catchError` (\_ -> return ())
+      loop
+    Insert -> do
+      k <- liftIO getChar
+      runCommand [k] `catchError` (\_ -> sendKey (Key k))
+      loop
+    Quitting -> return ()
+
 
 main :: IO ()
-main = runR defaultConfig startState normalMode >> return ()
+main = runR defaultConfig startState initialize >> return ()
