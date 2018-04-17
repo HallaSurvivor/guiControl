@@ -8,6 +8,7 @@ module Core
 
 import Control.Monad.State.Strict
 import Control.Monad.Reader
+
 import qualified Data.Map.Strict as M
 
 type Windows   = M.Map String Int -- ^ Window name, Window ID
@@ -80,7 +81,7 @@ defaultConfig = WConfig commands
       , ("quit", quit)
       ]
 
-    commands = M.fromList
+    commands = M.fromList $
       fmap (\(str, cmd) -> ((Normal,  str), cmd)) normalCommands ++
       fmap (\(str, cmd) -> ((Insert,  str), cmd)) insertCommands ++
       fmap (\(str, cmd) -> ((Command, str), cmd)) commandCommands

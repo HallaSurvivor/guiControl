@@ -26,14 +26,14 @@ terminalOn = do
 
 normalMode :: R ()
 normalMode = do
-  liftIO $ terminalOff
+  liftIO terminalOff
   loop
 
 commandMode :: R ()
 commandMode = do
   liftIO $ putStr ":"
-  liftIO $ terminalOn
-  cmd <- liftIO $ getLine
+  liftIO terminalOn
+  cmd <- liftIO getLine
   runCmd cmd
 
 -- TODO: allow window switching, opening new windows
@@ -45,7 +45,7 @@ runCmd cmd = case cmd of
 
 loop :: R ()
 loop = do
-  k <- liftIO $ getChar
+  k <- liftIO getChar
   case k of
     ':' -> commandMode
     _   -> sendKey (Key k) >> loop
