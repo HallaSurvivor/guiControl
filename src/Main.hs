@@ -2,6 +2,7 @@ module Main where
 
 import Core
 import DefaultConfig
+import XDoToolWrapper
 import Control.Monad.Reader
 import Control.Monad.Except
 import Control.Monad.State
@@ -16,7 +17,6 @@ initialize = do
 -- | The main loop
 loop :: R ()
 loop = do
-  join $ drawStatus <$> ask
   _mode <- mode <$> get
   case _mode of
     Command -> do

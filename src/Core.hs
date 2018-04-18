@@ -4,24 +4,16 @@ module Core
   , WConfig(..)
   , WState(..)
   , Mode(..)
-  , Key(..)
   , runR
   , startState
   , runCommand
-  , terminalOn
-  , terminalOff
-  , sendKey
   ) where
 
 import Control.Monad.State.Strict
 import Control.Monad.Reader
 import Control.Monad.Except
 import Data.Maybe
-import System.Console.ANSI
-import System.IO
-import System.Exit (ExitCode(..))
 import qualified Data.Map.Strict as M
-import qualified System.Process as P
 
 type Windows   = M.Map String Int -- ^ Window name, Window ID
 
@@ -43,7 +35,6 @@ data WConfig = WConfig
   , toCommand   :: R ()
   , toQuitting  :: R ()
   , cmdNotFound :: String -> R ()
-  , drawStatus :: R ()
   }
 
 -- | R has read access to WConfig and read/write access to WState
@@ -70,33 +61,3 @@ runCommand cmd = do
   _cmds <- commands <$> ask
   fromMaybe (throwError cmd) (M.lookup (_mode, cmd) _cmds)
 
-
-data Key = Key Char
-
-safeXDoTool :: [String] -> R ()
-safeXDoTool args = do
-  (exitcode, stdout, stderr) <- liftIO $ P.readProcessWithExitCode "xdotool" args ""
-  liftIO $ printError exitcode stderr
-    where
-      printError ExitSuccess _ = return ()
-      printError _ stderr      = print stderr
-
-sendKey :: Key -> R ()
-sendKey (Key k) = safeXDoTool ["key", [k]]
-
-terminalOff :: R ()
-terminalOff = liftIO $ do
-  clearScreen
-  hSetEcho stdin False
-  hSetBuffering stdin  NoBuffering
-  hSetBuffering stdout NoBuffering
-  hideCursor
-
-terminalOn :: R ()
-terminalOn = liftIO $ do
-  hSetEcho stdin True
-  hSetBuffering stdin  LineBuffering
-  hSetBuffering stdout LineBuffering
-  clearScreen
-  setCursorPosition 0 0
-  showCursor
