@@ -1,4 +1,4 @@
-# remoteControl
+# guiControl
 
 A vimlike interface for controlling a GUI through the terminal.
 
