@@ -1,6 +1,6 @@
-name:                remoteControl
+name:                guiControl
 version:             0.1.0.0
-homepage:            https://github.com/hallasurvivor/remoteControl#readme
+homepage:            https://github.com/hallasurvivor/guiControl#readme
 license:             BSD3
 author:              Chris Grossack
 maintainer:          hallasurvivor@gmail.com
