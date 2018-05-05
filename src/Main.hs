@@ -3,6 +3,7 @@ module Main where
 import Core
 import DefaultConfig
 import XDoToolWrapper
+import UI
 import Control.Monad.Reader
 import Control.Monad.Except
 import Control.Monad.State
