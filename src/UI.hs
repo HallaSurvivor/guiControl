@@ -4,12 +4,16 @@ module UI
   , setBuffering
   , setNoCursor
   , setCursor
+  , initializeUI
   ) where
 
 import Core
 import System.Console.ANSI
 import System.IO
 import Control.Monad.State
+
+initializeUI :: R ()
+initializeUI = liftIO $ hSetBuffering stdout NoBuffering
 
 drawMode :: R ()
 drawMode = do

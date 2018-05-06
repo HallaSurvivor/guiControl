@@ -12,6 +12,7 @@ import Data.Maybe
 
 initialize :: R ()
 initialize = do
+  initializeUI
   join $ toNormal <$> ask
   loop
 

@@ -13,7 +13,6 @@ _toQuitting = do
   setBuffering
   setCursor
 
-
 _toCommand :: R ()
 _toCommand = do
   modify' (\st -> st { mode = Command })
