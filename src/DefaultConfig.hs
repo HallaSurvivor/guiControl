@@ -3,6 +3,7 @@ module DefaultConfig
   ) where
 
 import Core
+import XDoToolWrapper
 import UI
 import Control.Monad.State.Strict (modify', liftIO)
 import qualified Data.Map.Strict as M
@@ -36,7 +37,15 @@ _toInsert = do
   setNoCursor
 
 _cmdNotFound :: String -> R ()
-_cmdNotFound cmd = liftIO $ putStrLn $ "Command ``" ++ cmd ++ "'' not found"
+_cmdNotFound cmd = do 
+  liftIO $ putStrLn $ "Command ``" ++ cmd ++ "'' not found"
+  _toNormal
+
+_ctrlF :: R ()
+_ctrlF = sendKey (Ctrl (Key 'f')) >> _toInsert
+
+_switchFocus :: R ()
+_switchFocus = undefined
 
 -- | Default configuration
 defaultConfig :: WConfig
@@ -55,12 +64,13 @@ defaultConfig = WConfig
       ]
 
     insertCommands =
-      [ ("q", _toNormal) 
+      [ ("`", _toNormal) 
       ]
 
     commandCommands = 
       [ ("q"   , _toQuitting)
       , ("quit", _toQuitting)
+      , ("find", _ctrlF)
       ]
 
     _commands = M.fromList $

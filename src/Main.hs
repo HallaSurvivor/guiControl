@@ -25,8 +25,6 @@ loop = do
       _cmdNotFound <- cmdNotFound <$> ask
       cmd <- liftIO getLine
       runCommand cmd `catchError` _cmdNotFound
-      mode' <- mode <$> get
-      unless (mode' == Quitting) (join $ toNormal <$> ask)
       loop
     Normal -> do 
       k <- liftIO getChar
