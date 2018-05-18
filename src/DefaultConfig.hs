@@ -47,6 +47,12 @@ _ctrlF = sendKey (Ctrl (Key 'f')) >> _toInsert
 _switchFocus :: R ()
 _switchFocus = undefined
 
+_sendXDoToolCommand :: R ()
+_sendXDoToolCommand = undefined
+
+_useMouse :: R ()
+_useMouse = undefined
+
 -- | Default configuration
 defaultConfig :: WConfig
 defaultConfig = WConfig 
